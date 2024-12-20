@@ -37,12 +37,11 @@ import (
 	hydra "github.com/ory/hydra-client-go/v2"
 	"github.com/ory/hydra/v2/client"
 	"github.com/ory/hydra/v2/driver/config"
-	"github.com/ory/hydra/v2/internal"
 )
 
 func TestStrategyLoginConsentNext(t *testing.T) {
 	ctx := context.Background()
-	reg := internal.NewMockedRegistry(t, &contextx.Default{})
+	reg := testhelpers.NewMockedRegistry(t, &contextx.Default{})
 	reg.Config().MustSet(ctx, config.KeyAccessTokenStrategy, "opaque")
 	reg.Config().MustSet(ctx, config.KeyConsentRequestMaxAge, time.Hour)
 	reg.Config().MustSet(ctx, config.KeyConsentRequestMaxAge, time.Hour)
@@ -823,7 +822,7 @@ func TestStrategyLoginConsentNext(t *testing.T) {
 		makeRequestAndExpectCode(t, hc, c, url.Values{})
 
 		// Make request with additional scope and prompt none, which fails
-		makeRequestAndExpectError(t, hc, c, url.Values{"prompt": {"none"}, "scope": {"openid"}},
+		makeRequestAndExpectError(t, hc, c, url.Values{"prompt": {"none"}, "scope": {"openid"}, "redirect_uri": {c.RedirectURIs[0]}},
 			"Prompt 'none' was requested, but no previous consent was found")
 	})
 
@@ -930,11 +929,11 @@ func TestStrategyLoginConsentNext(t *testing.T) {
 		}{
 			{
 				d:      "check all the sub claims",
-				values: url.Values{"scope": {"openid"}},
+				values: url.Values{"scope": {"openid"}, "redirect_uri": {c.RedirectURIs[0]}},
 			},
 			{
 				d:      "works with id_token_hint",
-				values: url.Values{"scope": {"openid"}, "id_token_hint": {testhelpers.NewIDToken(t, reg, hash)}},
+				values: url.Values{"scope": {"openid"}, "redirect_uri": {c.RedirectURIs[0]}, "id_token_hint": {testhelpers.NewIDToken(t, reg, hash)}},
 			},
 		} {
 			t.Run("case="+tc.d, func(t *testing.T) {
@@ -974,7 +973,7 @@ func TestStrategyLoginConsentNext(t *testing.T) {
 			}),
 			acceptConsentHandler(t, &hydra.AcceptOAuth2ConsentRequest{GrantScope: []string{"openid"}}))
 
-		code := makeRequestAndExpectCode(t, nil, c, url.Values{})
+		code := makeRequestAndExpectCode(t, nil, c, url.Values{"redirect_uri": {c.RedirectURIs[0]}})
 
 		conf := oauth2Config(t, c)
 		token, err := conf.Exchange(context.Background(), code)

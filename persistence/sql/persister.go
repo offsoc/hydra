@@ -33,7 +33,6 @@ var _ persistence.Persister = new(Persister)
 var _ storage.Transactional = new(Persister)
 
 var (
-	ErrTransactionOpen   = errors.New("There is already a Transaction in this context.")
 	ErrNoTransactionOpen = errors.New("There is no Transaction in this context.")
 )
 
@@ -60,6 +59,7 @@ type (
 		contextx.Provider
 		x.RegistryLogger
 		x.TracingProvider
+		config.Provider
 	}
 )
 
@@ -177,9 +177,12 @@ func (p *Persister) Connection(ctx context.Context) *pop.Connection {
 	return popx.GetConnection(ctx, p.conn)
 }
 
-func (p *Persister) Ping() error {
-	type pinger interface{ Ping() error }
-	return p.conn.Store.(pinger).Ping()
+func (p *Persister) Ping(ctx context.Context) error {
+	return p.conn.Store.SQLDB().PingContext(ctx)
+}
+func (p *Persister) PingContext(ctx context.Context) error {
+	type pinger interface{ PingContext(context.Context) error }
+	return p.conn.Store.(pinger).PingContext(ctx)
 }
 
 func (p *Persister) mustSetNetwork(nid uuid.UUID, v interface{}) interface{} {
